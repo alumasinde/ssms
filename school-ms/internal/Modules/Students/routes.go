@@ -2,7 +2,7 @@ package students
 
 import (
 	handlers "school-ms/internal/Modules/Students/Handlers"
-	repos "school-ms/internal/Modules/Students/Repositories"
+	repos    "school-ms/internal/Modules/Students/Repositories"
 	services "school-ms/internal/Modules/Students/Services"
 	"school-ms/internal/middleware"
 
@@ -12,33 +12,27 @@ import (
 
 func RegisterRoutes(r chi.Router, db *sqlx.DB) {
 	repo := repos.NewStudentRepository(db)
-	svc := services.NewStudentService(repo)
-	h := handlers.NewStudentHandler(svc)
+	svc  := services.NewStudentService(repo)
+	h    := handlers.NewStudentHandler(svc, db)
 
 	r.Route("/students", func(r chi.Router) {
-        r.Use(middleware.Authenticate)
+		r.Use(middleware.Authenticate)
 
-        r.Group(func(r chi.Router) {
-            r.Use(middleware.RequirePermission(db, "students.view"))
-            r.Get("/", h.List)
-            r.Get("/class/{classId}", h.ListByClass)
-            r.Get("/{id}", h.Get)
-        })
+		// ── Static paths MUST come before /{id} wildcard ─────────────────
+		// chi is most-specific-first but only within the same method;
+		// registering static routes before wildcard is the safest pattern.
+		r.With(middleware.RequirePermission(db, "students.create")).Post("/", h.Create)
+		r.With(middleware.RequirePermission(db, "students.edit")).Post("/promote", h.Promote)
+		r.With(middleware.RequirePermission(db, "students.view")).Get("/search", h.Search)
+		r.With(middleware.RequirePermission(db, "students.view")).Get("/class/{classId}", h.ListByClass)
 
-        r.Group(func(r chi.Router) {
-            r.Use(middleware.RequirePermission(db, "students.create"))
-            r.Post("/", h.Create)
-        })
+		// ── Paginated / role-filtered list ────────────────────────────────
+		r.With(middleware.RequirePermission(db, "students.view")).Get("/", h.List)
 
-        r.Group(func(r chi.Router) {
-            r.Use(middleware.RequirePermission(db, "students.edit"))
-            r.Put("/{id}", h.Update)
-            r.Post("/{id}", h.Update)
-        })
-
-        r.Group(func(r chi.Router) {
-            r.Use(middleware.RequirePermission(db, "students.delete"))
-            r.Delete("/{id}", h.Deactivate)
-        })
-    })
+		// ── Single student — wildcard LAST ────────────────────────────────
+		r.With(middleware.RequirePermission(db, "students.view")).Get("/{id}", h.Get)
+		r.With(middleware.RequirePermission(db, "students.view")).Get("/{id}/parents", h.GetParents)
+		r.With(middleware.RequirePermission(db, "students.edit")).Put("/{id}", h.Update)
+		r.With(middleware.RequirePermission(db, "students.delete")).Delete("/{id}", h.Deactivate)
+	})
 }

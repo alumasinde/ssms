@@ -2,6 +2,8 @@
 
 namespace Core;
 
+use DateTime;
+
 class Session
 {
     public static function start(): void
@@ -18,6 +20,8 @@ class Session
     $permissions = self::get('permissions', []);
     return in_array($permission, $permissions);
 }
+
+public static function hasRole()
 
     public static function set(string $key, mixed $value): void
     {
@@ -70,4 +74,13 @@ class Session
         self::remove('_flash_' . $key);
         return $val;
     }
+
+    public static function formatDate(?string $date, string $format = 'Y-m-d'): string
+{
+    if (empty($date)) {
+        return '';
+    }
+
+    return (new DateTime($date))->format($format);
+}
 }

@@ -5,17 +5,17 @@ import (
 	"net/http"
 	"strconv"
 
-	mw "school-ms/internal/middleware"
+	mw   "school-ms/internal/middleware"
 	dtos "school-ms/internal/Modules/Exams/DTOs"
-	services "school-ms/internal/Modules/Exams/Services"
+	svc  "school-ms/internal/Modules/Exams/Services"
 	"school-ms/internal/pkg/response"
 
 	"github.com/go-chi/chi/v5"
 )
 
-type ExamHandler struct{ svc *services.ExamService }
+type ExamHandler struct{ svc *svc.ExamService }
 
-func NewExamHandler(svc *services.ExamService) *ExamHandler { return &ExamHandler{svc: svc} }
+func NewExamHandler(s *svc.ExamService) *ExamHandler { return &ExamHandler{svc: s} }
 
 func (h *ExamHandler) CreateExam(w http.ResponseWriter, r *http.Request) {
 	var dto dtos.CreateExamDTO
@@ -27,7 +27,19 @@ func (h *ExamHandler) CreateExam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ExamHandler) ListExams(w http.ResponseWriter, r *http.Request) {
-	list, err := h.svc.ListExams(mw.GetSchoolID(r.Context()))
+	schoolID := mw.GetSchoolID(r.Context())
+	// filter by term_id or class_id if provided
+	if termID, _ := strconv.ParseInt(r.URL.Query().Get("term_id"), 10, 64); termID > 0 {
+		list, err := h.svc.ListByTerm(termID)
+		if err != nil { response.InternalError(w, err.Error()); return }
+		response.Success(w, list, ""); return
+	}
+	if classID, _ := strconv.ParseInt(r.URL.Query().Get("class_id"), 10, 64); classID > 0 {
+		list, err := h.svc.ListByClass(classID)
+		if err != nil { response.InternalError(w, err.Error()); return }
+		response.Success(w, list, ""); return
+	}
+	list, err := h.svc.ListExams(schoolID)
 	if err != nil { response.InternalError(w, err.Error()); return }
 	response.Success(w, list, "")
 }
@@ -50,7 +62,12 @@ func (h *ExamHandler) SubmitResults(w http.ResponseWriter, r *http.Request) {
 
 func (h *ExamHandler) GetResults(w http.ResponseWriter, r *http.Request) {
 	examID, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	list, err := h.svc.GetResultsByExam(examID)
+	if classID, _ := strconv.ParseInt(r.URL.Query().Get("class_id"), 10, 64); classID > 0 {
+		list, err := h.svc.GetResultsByExamAndClass(examID, classID)
+		if err != nil { response.InternalError(w, err.Error()); return }
+		response.Success(w, list, ""); return
+	}
+	list, err := h.svc.GetResultsByExamEnriched(examID)
 	if err != nil { response.InternalError(w, err.Error()); return }
 	response.Success(w, list, "")
 }

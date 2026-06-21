@@ -5,17 +5,17 @@ import (
 	"net/http"
 	"strconv"
 
-	mw "school-ms/internal/middleware"
+	mw   "school-ms/internal/middleware"
 	dtos "school-ms/internal/Modules/Finance/DTOs"
-	services "school-ms/internal/Modules/Finance/Services"
+	svc  "school-ms/internal/Modules/Finance/Services"
 	"school-ms/internal/pkg/response"
 
 	"github.com/go-chi/chi/v5"
 )
 
-type FinanceHandler struct{ svc *services.FinanceService }
+type FinanceHandler struct{ svc *svc.FinanceService }
 
-func NewFinanceHandler(svc *services.FinanceService) *FinanceHandler { return &FinanceHandler{svc: svc} }
+func NewFinanceHandler(s *svc.FinanceService) *FinanceHandler { return &FinanceHandler{svc: s} }
 
 func (h *FinanceHandler) CreateFeeType(w http.ResponseWriter, r *http.Request) {
 	var dto dtos.CreateFeeTypeDTO
@@ -60,4 +60,34 @@ func (h *FinanceHandler) InvoicePayments(w http.ResponseWriter, r *http.Request)
 	list, err := h.svc.GetInvoicePayments(invoiceID)
 	if err != nil { response.InternalError(w, err.Error()); return }
 	response.Success(w, list, "")
+}
+
+func (h *FinanceHandler) CreateDiscount(w http.ResponseWriter, r *http.Request) {
+	var dto dtos.CreateDiscountDTO
+	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil { response.BadRequest(w, "invalid payload"); return }
+	d, err := h.svc.CreateDiscount(dto, mw.GetSchoolID(r.Context()), mw.GetUserID(r.Context()))
+	if err != nil { response.InternalError(w, err.Error()); return }
+	response.Created(w, d, "discount created")
+}
+
+func (h *FinanceHandler) ListDiscounts(w http.ResponseWriter, r *http.Request) {
+	studentID, _ := strconv.ParseInt(chi.URLParam(r, "studentId"), 10, 64)
+	list, err := h.svc.ListDiscounts(studentID)
+	if err != nil { response.InternalError(w, err.Error()); return }
+	response.Success(w, list, "")
+}
+
+func (h *FinanceHandler) MpesaStkPush(w http.ResponseWriter, r *http.Request) {
+	var dto dtos.MpesaStkPushDTO
+	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil { response.BadRequest(w, "invalid payload"); return }
+	result, err := h.svc.InitiateStkPush(dto, mw.GetSchoolID(r.Context()))
+	if err != nil { response.InternalError(w, err.Error()); return }
+	response.Success(w, result, "STK push initiated")
+}
+
+func (h *FinanceHandler) MpesaCallback(w http.ResponseWriter, r *http.Request) {
+	var cb dtos.MpesaCallbackDTO
+	if err := json.NewDecoder(r.Body).Decode(&cb); err != nil { w.WriteHeader(200); return }
+	h.svc.HandleMpesaCallback(cb)
+	w.WriteHeader(200)
 }

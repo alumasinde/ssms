@@ -1,5 +1,7 @@
+<?php /** @var array $classes @var array $terms */ ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="fw-bold mb-0"><i class="bi bi-calendar-check me-2 text-success"></i>Attendance</h5>
+  <a href="/attendance/summary" class="btn btn-outline-info btn-sm"><i class="bi bi-bar-chart me-1"></i>Summary</a>
 </div>
 <div class="card">
   <div class="card-header py-3">Mark Attendance for a Class</div>
@@ -24,3 +26,9 @@
     </form>
   </div>
 </div>
+<?php if (empty($terms)): ?>
+<div class="alert alert-warning mt-3">
+  <i class="bi bi-exclamation-triangle me-2"></i>No terms configured.
+  <a href="/terms/create" class="alert-link">Create a term</a> before marking attendance.
+</div>
+<?php endif; ?>

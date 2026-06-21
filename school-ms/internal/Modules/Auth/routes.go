@@ -12,15 +12,18 @@ import (
 
 func RegisterRoutes(r chi.Router, db *sqlx.DB) {
 	repo := repositories.NewAuthRepository(db)
-	svc := services.NewAuthService(repo)
-	h := handlers.NewAuthHandler(svc)
+	svc  := services.NewAuthService(repo)
+	h    := handlers.NewAuthHandler(svc)
 
-	// Public – tenant resolved from Host header by ResolveTenantFromDB middleware
-	r.Post("/auth/login", h.Login)
+	// ── Public ────────────────────────────────────────────────────────────────
+	// ResolveTenantFromDB must be mounted globally before these routes run.
+	r.Post("/auth/login",   h.Login)
+	r.Post("/auth/refresh", h.Refresh)
 
-	// Protected
+	// ── Protected ─────────────────────────────────────────────────────────────
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Authenticate)
-		r.Get("/auth/me", h.Whoami)
+		r.Get("/auth/me",      h.Me)
+		r.Post("/auth/logout", h.Logout)
 	})
 }

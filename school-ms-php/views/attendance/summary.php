@@ -1,3 +1,4 @@
+<?php /** @var array $summary @var array $classes @var array $terms @var int $classID @var int $termID */ ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="fw-bold mb-0"><i class="bi bi-bar-chart me-2 text-success"></i>Attendance Summary</h5>
 </div>
@@ -10,22 +11,25 @@
         <select name="class_id" class="form-select">
           <option value="">Select Class</option>
           <?php foreach ($classes as $c): ?>
-            <option value="<?= $c['id'] ?>"
-              <?= $classID == $c['id'] ? 'selected' : '' ?>>
+            <option value="<?= $c['id'] ?>" <?= $classID == $c['id'] ? 'selected' : '' ?>>
               <?= htmlspecialchars($c['name']) ?>
             </option>
           <?php endforeach; ?>
         </select>
       </div>
       <div class="col-md-4">
-        <label class="form-label small fw-semibold">Term ID</label>
-        <input type="number" name="term_id" class="form-control"
-               value="<?= $termID ?>" placeholder="Enter term ID">
+        <label class="form-label small fw-semibold">Term</label>
+        <select name="term_id" class="form-select">
+          <option value="">Select Term</option>
+          <?php foreach ($terms as $t): ?>
+            <option value="<?= $t['id'] ?>" <?= $termID == $t['id'] ? 'selected' : '' ?>>
+              <?= htmlspecialchars($t['name']) ?><?= ($t['is_current'] ?? false) ? ' (Current)' : '' ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
       </div>
       <div class="col-md-4">
-        <button type="submit" class="btn btn-success w-100">
-          <i class="bi bi-search me-1"></i>View Summary
-        </button>
+        <button type="submit" class="btn btn-success w-100"><i class="bi bi-search me-1"></i>View Summary</button>
       </div>
     </form>
   </div>
@@ -36,14 +40,7 @@
   <div class="card-body p-0">
     <table class="table table-hover mb-0">
       <thead>
-        <tr>
-          <th>Student</th>
-          <th class="text-center">Total Days</th>
-          <th class="text-center">Present</th>
-          <th class="text-center">Absent</th>
-          <th class="text-center">Late</th>
-          <th>Attendance %</th>
-        </tr>
+        <tr><th>Student</th><th class="text-center">Total</th><th class="text-center">Present</th><th class="text-center">Absent</th><th class="text-center">Late</th><th>Attendance %</th></tr>
       </thead>
       <tbody>
         <?php foreach ($summary as $row): ?>
@@ -56,9 +53,8 @@
           <td>
             <div class="d-flex align-items-center gap-2">
               <div class="progress flex-grow-1" style="height:8px">
-                <div class="progress-bar
-                  <?= $row['percent'] >= 80 ? 'bg-success' : ($row['percent'] >= 60 ? 'bg-warning' : 'bg-danger') ?>"
-                  style="width:<?= $row['percent'] ?>%"></div>
+                <div class="progress-bar <?= $row['percent'] >= 80 ? 'bg-success' : ($row['percent'] >= 60 ? 'bg-warning' : 'bg-danger') ?>"
+                     style="width:<?= $row['percent'] ?>%"></div>
               </div>
               <span class="small fw-semibold"><?= $row['percent'] ?>%</span>
             </div>

@@ -3,6 +3,7 @@ package dtos
 type CreateExamDTO struct {
 	SchoolID  int64  `json:"school_id"`
 	TermID    int64  `json:"term_id"`
+	ClassID   *int64 `json:"class_id"`
 	Name      string `json:"name"`
 	Type      string `json:"type"`
 	StartDate string `json:"start_date"`
@@ -10,8 +11,9 @@ type CreateExamDTO struct {
 }
 
 type SubmitResultDTO struct {
-	ExamID    int64         `json:"exam_id"`
-	Results   []ResultEntry `json:"results"`
+	ExamID  int64         `json:"exam_id"`
+	ClassID int64         `json:"class_id"`
+	Results []ResultEntry `json:"results"`
 }
 
 type ResultEntry struct {

@@ -15,13 +15,17 @@ func RegisterRoutes(r chi.Router, db *sqlx.DB) {
 	svc := services.NewSchoolService(repo)
 	h := handlers.NewSchoolHandler(svc)
 
-	r.Group(func(r chi.Router) {
+	r.Route("/schools", func(r chi.Router) {
 		r.Use(middleware.Authenticate)
-		r.Route("/schools", func(r chi.Router) {
-			r.Get("/", h.ListSchools)
-			r.Post("/", h.CreateSchool)
-			r.Get("/{id}", h.GetSchool)
-			r.Put("/{id}", h.UpdateSchool)
-		})
+
+		r.With(middleware.RequirePermission(db, "schools.view")).Get("/", h.ListSchools)
+		r.With(middleware.RequirePermission(db, "schools.create")).Post("/", h.CreateSchool)
+		r.With(middleware.RequirePermission(db, "schools.view")).Get("/{id}", h.GetSchool)
+		r.With(middleware.RequirePermission(db, "schools.edit")).Put("/{id}", h.UpdateSchool)
+
+		// Terms (nested under schools for now)
+		r.With(middleware.RequirePermission(db, "academic_years.view")).Get("/{id}/terms", h.ListTerms)
+		r.With(middleware.RequirePermission(db, "academic_years.create")).Post("/{id}/terms", h.CreateTerm)
+		r.With(middleware.RequirePermission(db, "academic_years.view")).Get("/{id}/terms/current", h.GetCurrentTerm)
 	})
 }

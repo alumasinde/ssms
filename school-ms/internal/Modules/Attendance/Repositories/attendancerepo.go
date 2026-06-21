@@ -36,7 +36,7 @@ func (r *AttendanceRepository) ListByStudent(studentID, termID int64) ([]models.
 func (r *AttendanceRepository) SummaryByClass(classID, termID int64) ([]models.AttendanceSummary, error) {
 	var list []models.AttendanceSummary
 	q := `
-		SELECT a.student_id, s.name AS student_name,
+		SELECT a.student_id, CONCAT(s.first_name,' ',s.last_name) AS student_name,
 		       COUNT(*) AS total,
 		       SUM(a.status='present') AS present,
 		       SUM(a.status='absent') AS absent,
@@ -45,6 +45,6 @@ func (r *AttendanceRepository) SummaryByClass(classID, termID int64) ([]models.A
 		FROM attendance a
 		JOIN students s ON s.id=a.student_id
 		WHERE a.class_id=? AND a.term_id=?
-		GROUP BY a.student_id, s.name`
+		GROUP BY a.student_id, s.first_name, s.last_name`
 	return list, r.db.Select(&list, q, classID, termID)
 }

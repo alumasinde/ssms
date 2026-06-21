@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"school-ms/config"
+	"school-ms/internal/pkg/permcache"
 	"school-ms/internal/pkg/response"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -15,20 +16,26 @@ import (
 type contextKey string
 
 const (
-	CtxUserID     contextKey = "user_id"
-	CtxTenantID   contextKey = "tenant_id"
-	CtxRole       contextKey = "role"
-	CtxSchoolID   contextKey = "school_id"
-	CtxTenantObj  contextKey = "tenant_obj"
-	CtxTenantSlug contextKey = "tenant_slug"
+	CtxUserID         contextKey = "user_id"
+	CtxTenantID       contextKey = "tenant_id"
+	CtxRoles          contextKey = "roles"
+	CtxSchoolID       contextKey = "school_id"
+	CtxAcademicYearID contextKey = "academic_year_id"
+	CtxTermID         contextKey = "term_id"
+	CtxTenantObj      contextKey = "tenant_obj"
+	CtxTenantSlug     contextKey = "tenant_slug"
+	CtxPermCache      contextKey = "perm_cache"
 )
 
 // Claims is embedded in every JWT token.
+// All fields match the real schema and middleware helpers exactly.
 type Claims struct {
-	UserID   int64  `json:"user_id"`
-	TenantID int64  `json:"tenant_id"`
-	SchoolID int64  `json:"school_id"`
-	Role     string `json:"role"`
+	UserID         int64    `json:"user_id"`
+	TenantID       int64    `json:"tenant_id"`
+	SchoolID       *int64   `json:"school_id"`
+	Roles          []string `json:"roles"`
+	AcademicYearID *int64   `json:"academic_year_id,omitempty"`
+	TermID         *int64   `json:"term_id,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -39,27 +46,25 @@ type TenantInfo struct {
 	Name string
 }
 
-//No slug in my table, use domain
+func InjectPermCache(pc *permcache.Cache) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := context.WithValue(r.Context(), CtxPermCache, pc)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
 func ResolveTenantFromDB(db *sqlx.DB) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var tenant TenantInfo
-			
-
-			// Priority 2: forwarded host (reverse proxy / nginx)
-			if tenant.ID == 0 {
-				if fwdHost := r.Header.Get("X-Forwarded-Host"); fwdHost != "" {
-					host := extractHost(fwdHost)
-					resolveTenantFromHost(db, host, &tenant)
-				}
+			if fwdHost := r.Header.Get("X-Forwarded-Host"); fwdHost != "" {
+				resolveTenantFromHost(db, extractHost(fwdHost), &tenant)
 			}
-
-			// Priority 3: actual Host header (direct subdomain access)
 			if tenant.ID == 0 {
-				host := extractHost(r.Host)
-				resolveTenantFromHost(db, host, &tenant)
+				resolveTenantFromHost(db, extractHost(r.Host), &tenant)
 			}
-
 			ctx := context.WithValue(r.Context(), CtxTenantObj, tenant)
 			ctx = context.WithValue(ctx, CtxTenantSlug, tenant.Slug)
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -67,17 +72,13 @@ func ResolveTenantFromDB(db *sqlx.DB) func(http.Handler) http.Handler {
 	}
 }
 
-// resolveTenantFromHost tries exact domain match then slug match from subdomain.
 func resolveTenantFromHost(db *sqlx.DB, host string, tenant *TenantInfo) {
-	// Exact domain match against the full host
 	err := db.QueryRow(
 		`SELECT id, name FROM tenants WHERE domain=? AND is_active=1 LIMIT 1`,
 		host).Scan(&tenant.ID, &tenant.Name)
 	if err == nil {
 		return
 	}
-
-	// Try the extracted slug portion as a domain prefix match
 	slug := extractSlug(host)
 	if slug != "" {
 		db.QueryRow(
@@ -86,8 +87,6 @@ func resolveTenantFromHost(db *sqlx.DB, host string, tenant *TenantInfo) {
 	}
 }
 
-// ResolveTenant is a simple no-DB fallback kept for tests / environments
-// where the DB isn't available during middleware setup.
 func ResolveTenant(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slug := r.Header.Get("X-Tenant-Slug")
@@ -121,7 +120,9 @@ func Authenticate(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), CtxUserID, claims.UserID)
 		ctx = context.WithValue(ctx, CtxTenantID, claims.TenantID)
 		ctx = context.WithValue(ctx, CtxSchoolID, claims.SchoolID)
-		ctx = context.WithValue(ctx, CtxRole, claims.Role)
+		ctx = context.WithValue(ctx, CtxRoles, claims.Roles)
+		ctx = context.WithValue(ctx, CtxAcademicYearID, claims.AcademicYearID)
+		ctx = context.WithValue(ctx, CtxTermID, claims.TermID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -130,11 +131,13 @@ func Authenticate(next http.Handler) http.Handler {
 func RequireRole(roles ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			role, _ := r.Context().Value(CtxRole).(string)
+			userRoles := GetRoles(r.Context())
 			for _, allowed := range roles {
-				if role == allowed {
-					next.ServeHTTP(w, r)
-					return
+				for _, role := range userRoles {
+					if role == allowed {
+						next.ServeHTTP(w, r)
+						return
+					}
 				}
 			}
 			response.Forbidden(w, "insufficient permissions")
@@ -142,23 +145,53 @@ func RequireRole(roles ...string) func(http.Handler) http.Handler {
 	}
 }
 
-// RequirePermission checks if the JWT role has a given permission via DB lookup
+// RequirePermission checks a permission via the in-process cache (5-min TTL).
+// Falls back to a direct DB query when no cache is in context.
+//
+// DB fallback uses the real schema:
+//   role_permissions(role_id, permission_id) → roles(id, name)
+// The user may have multiple roles — any role granting the permission allows access.
 func RequirePermission(db *sqlx.DB, permission string) func(http.Handler) http.Handler {
-    return func(next http.Handler) http.Handler {
-        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            role := GetRole(r.Context())
-            var count int
-            err := db.QueryRow(`
-                SELECT COUNT(*) FROM role_permissions rp
-                JOIN permissions p ON p.id = rp.permission_id
-                WHERE rp.role = ? AND p.name = ?`, role, permission).Scan(&count)
-            if err != nil || count == 0 {
-                response.Forbidden(w, "you do not have permission to perform this action")
-                return
-            }
-            next.ServeHTTP(w, r)
-        })
-    }
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			roles := GetRoles(r.Context())
+			var allowed bool
+
+			if pc, ok := r.Context().Value(CtxPermCache).(*permcache.Cache); ok {
+				for _, role := range roles {
+					if pc.Has(role, permission) {
+						allowed = true
+						break
+					}
+				}
+			} else {
+				// Fallback: direct DB — schema-aligned query
+				// roles table exists; role_permissions.role_id is a FK to roles.id
+				var count int
+				for _, role := range roles {
+					db.QueryRow(`
+						SELECT COUNT(*)
+						FROM role_permissions rp
+						INNER JOIN permissions p ON p.id  = rp.permission_id
+						INNER JOIN roles       r ON r.id  = rp.role_id
+						WHERE r.name  = ?
+						  AND p.name  = ?
+						  AND r.is_active = 1
+					`, role, permission).Scan(&count)
+					if count > 0 {
+						allowed = true
+						break
+					}
+				}
+			}
+
+			if !allowed {
+				response.Forbidden(w, "you do not have permission to perform this action")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // ── Context helpers ───────────────────────────────────────────────────────────
@@ -167,27 +200,33 @@ func GetUserID(ctx context.Context) int64 {
 	v, _ := ctx.Value(CtxUserID).(int64)
 	return v
 }
-
 func GetTenantID(ctx context.Context) int64 {
 	v, _ := ctx.Value(CtxTenantID).(int64)
 	return v
 }
-
-func GetSchoolID(ctx context.Context) int64 {
-	v, _ := ctx.Value(CtxSchoolID).(int64)
+func GetSchoolID(ctx context.Context) *int64 {
+	v, _ := ctx.Value(CtxSchoolID).(*int64)
 	return v
 }
-
-func GetRole(ctx context.Context) string {
-	v, _ := ctx.Value(CtxRole).(string)
+func GetRoles(ctx context.Context) []string {
+	v, ok := ctx.Value(CtxRoles).([]string)
+	if !ok {
+		return []string{}
+	}
 	return v
 }
-
+func GetAcademicYearID(ctx context.Context) *int64 {
+	v, _ := ctx.Value(CtxAcademicYearID).(*int64)
+	return v
+}
+func GetTermID(ctx context.Context) *int64 {
+	v, _ := ctx.Value(CtxTermID).(*int64)
+	return v
+}
 func GetResolvedTenant(ctx context.Context) TenantInfo {
 	v, _ := ctx.Value(CtxTenantObj).(TenantInfo)
 	return v
 }
-
 func GetTenantSlug(ctx context.Context) string {
 	v, _ := ctx.Value(CtxTenantSlug).(string)
 	return v
@@ -195,10 +234,8 @@ func GetTenantSlug(ctx context.Context) string {
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-// extractHost strips port from "host:port" → "host".
 func extractHost(hostHeader string) string {
 	if i := strings.LastIndex(hostHeader, ":"); i != -1 {
-		// Don't strip if the colon is inside an IPv6 bracket
 		if !strings.Contains(hostHeader[i:], "]") {
 			return hostHeader[:i]
 		}
@@ -206,25 +243,13 @@ func extractHost(hostHeader string) string {
 	return hostHeader
 }
 
-// extractSlug derives a tenant slug from a hostname.
-//
-// Supported patterns:
-//   ssms.highwayhigh.ac.ke   →  "highwayhigh"
-//   highwayhigh.ac.ke        →  "highwayhigh"
-//   highwayhigh.com          →  "highwayhigh"
-//   localhost / 127.0.0.1    →  ""
-//
-// Kenyan ccTLD second-level domains (.ac.ke, .co.ke, .or.ke, etc.) are treated
-// specially so the school identifier is the label immediately before the SLD.
 func extractSlug(host string) string {
 	if host == "" || host == "localhost" {
 		return ""
 	}
-
 	parts := strings.Split(host, ".")
 	n := len(parts)
 
-	// *.localhost TLD: ssms.highway.localhost → "highway"
 	if parts[n-1] == "localhost" {
 		if n >= 3 {
 			return parts[n-2]
@@ -235,7 +260,6 @@ func extractSlug(host string) string {
 		return ""
 	}
 
-	// Kenyan SLDs
 	kenyanSLDs := map[string]bool{
 		"ac.ke": true, "co.ke": true, "or.ke": true,
 		"go.ke": true, "ne.ke": true, "sc.ke": true,
@@ -253,8 +277,6 @@ func extractSlug(host string) string {
 			}
 		}
 	}
-
-	// Generic: foo.bar.com → "bar"
 	if n >= 3 {
 		return parts[n-3]
 	}

@@ -14,6 +14,11 @@
         <div class="col-md-6"><label class="form-label small fw-semibold">Last Name *</label><input type="text" name="last_name" class="form-control" required></div>
         <div class="col-md-6"><label class="form-label small fw-semibold">Gender</label><select name="gender" class="form-select"><option value="">Select</option><option>male</option><option>female</option><option>other</option></select></div>
         <div class="col-md-6"><label class="form-label small fw-semibold">Date of Birth</label><input type="date" name="dob" class="form-control"></div>
+        <div class="col-md-6"><label class="form-label small fw-semibold">Nationality</label><input type="text" name="nationality" class="form-control"></div>
+        <div class="col-md-6"><label class="form-label small fw-semibold">National ID</label><input type="text" name="national_id" class="form-control"></div>
+        <div class="col-md-6"><label class="form-label small fw-semibold">Religion</label><input type="text" name="religion" class="form-control"></div>
+        <div class="col-md-6"><label class="form-label small fw-semibold">Blood Group</label><input type="text" name="blood_group" class="form-control"></div>
+        <div class="col-12"><label class="form-label small fw-semibold">Address</label><textarea name="address" class="form-control" rows="3"></textarea></div>
         <div class="col-12"><label class="form-label small fw-semibold">Class *</label><select name="class_id" class="form-select" required><option value="">Select Class</option><?php foreach ($classes as $c): ?><option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?> — <?= htmlspecialchars($c['level']) ?></option><?php endforeach; ?></select></div>
       </div>
       <div class="mt-4 d-flex gap-2">

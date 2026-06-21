@@ -57,3 +57,13 @@ func (h *ReportHandler) AttendanceSummary(w http.ResponseWriter, r *http.Request
 	}
 	response.Success(w, reports, "")
 }
+
+func (h *ReportHandler) SubjectPerformance(w http.ResponseWriter, r *http.Request) {
+	examID, _ := strconv.ParseInt(r.URL.Query().Get("exam_id"), 10, 64)
+	rows, err := h.svc.GetSubjectPerformance(examID)
+	if err != nil {
+		response.InternalError(w, err.Error())
+		return
+	}
+	response.Success(w, rows, "")
+}

@@ -1,3 +1,10 @@
+<?php
+/** @var int    $classID */
+/** @var string $date */
+/** @var array  $students */
+/** @var array  $existingMap */
+/** @var array|null $currentTerm */
+?>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="fw-bold mb-0">
     <i class="bi bi-calendar-check me-2 text-success"></i>
@@ -16,12 +23,12 @@
   <?php if ($currentTerm): ?>
     <div class="alert alert-info py-2 small mb-3">
       <i class="bi bi-info-circle me-1"></i>
-      Recording for: <strong><?= htmlspecialchars($currentTerm['name'] ?? 'Current Term') ?></strong>
+      Term: <strong><?= htmlspecialchars($currentTerm['name'] ?? 'Current Term') ?></strong>
     </div>
   <?php else: ?>
     <div class="alert alert-warning py-2 small mb-3">
       <i class="bi bi-exclamation-triangle me-1"></i>
-      No current term set. Please configure a current term in Academic Years.
+      No current term configured. Attendance cannot be saved until a current term is set.
     </div>
   <?php endif; ?>
 
@@ -45,13 +52,12 @@
             <?php foreach ($students as $s):
               $existing      = $existingMap[$s['id']] ?? null;
               $currentStatus = $existing['status'] ?? 'present';
+              $fullName      = trim(($s['first_name'] ?? '') . ' ' . ($s['middle_name'] ?? '') . ' ' . ($s['last_name'] ?? ''));
             ?>
             <tr>
               <td class="fw-semibold small">
-                <?= htmlspecialchars($s['name']) ?>
-                <br><span class="text-muted" style="font-size:.72rem">
-                  <?= htmlspecialchars($s['admission_no']) ?>
-                </span>
+                <?= htmlspecialchars($fullName) ?>
+                <br><span class="text-muted" style="font-size:.72rem"><?= htmlspecialchars($s['admission_no'] ?? '') ?></span>
               </td>
               <?php foreach (['present','absent','late','excused'] as $st): ?>
               <td class="text-center">
@@ -76,9 +82,11 @@
       </table>
     </div>
     <div class="card-footer bg-white d-flex gap-2">
-      <button type="submit" class="btn btn-success">
-        <i class="bi bi-save me-1"></i>Save Attendance
-      </button>
+      <?php if ($currentTerm): ?>
+        <button type="submit" class="btn btn-success">
+          <i class="bi bi-save me-1"></i>Save Attendance
+        </button>
+      <?php endif; ?>
       <a href="/attendance" class="btn btn-outline-secondary">Cancel</a>
     </div>
   </div>

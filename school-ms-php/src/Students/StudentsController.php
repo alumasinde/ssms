@@ -33,7 +33,7 @@ class StudentsController extends Controller
         $this->redirect('/students', 'Student not found.', 'error');
     }
     $student        = $res['data'];
-    $linkedParents  = $this->api->get("/parents/student/{$id}");
+    $linkedParents  = $this->api->get("/students/{$id}/parents");
     $allParents     = $this->api->get('/parents');
 
     $this->view('students/show', [
@@ -65,6 +65,11 @@ class StudentsController extends Controller
         'last_name'    => trim($_POST['last_name'] ?? ''),
         'gender'       => $_POST['gender'] ?? '',
         'dob'          => $_POST['dob'] ?? '',
+        'nationality'  => trim($_POST['nationality'] ?? ''),
+        'national_id'  => trim($_POST['national_id'] ?? ''),
+        'religion'       => trim($_POST['religion'] ?? ''),
+        'blood_group'    => trim($_POST['blood_group'] ?? ''),
+        'address'        => trim($_POST['address'] ?? ''),
         'class_id'     => (int)($_POST['class_id'] ?? 0),
     ]);
     if ($res['success'] ?? false) {
@@ -103,6 +108,11 @@ class StudentsController extends Controller
             'last_name'    => trim($_POST['last_name'] ?? ''),
             'gender'   => $_POST['gender'] ?? '',
             'dob'      => $_POST['dob'] ?? '',
+            'nationality'  => trim($_POST['nationality'] ?? ''),
+            'national_id'  => trim($_POST['national_id'] ?? ''),
+            'religion'       => trim($_POST['religion'] ?? ''),
+            'blood_group'    => trim($_POST['blood_group'] ?? ''),
+            'address'        => trim($_POST['address'] ?? ''),
             'class_id' => (int)($_POST['class_id'] ?? 0),
         ]);
         if ($res['success'] ?? false) {

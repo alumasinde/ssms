@@ -16,6 +16,11 @@ class Router
         $this->routes[] = ['POST', $path, $handler];
     }
 
+    public function put(string $path, callable|array $handler): void
+    {
+        $this->routes[] = ['PUT', $path, $handler];
+    }
+
     public function any(string $path, callable|array $handler): void
     {
         $this->routes[] = ['ANY', $path, $handler];

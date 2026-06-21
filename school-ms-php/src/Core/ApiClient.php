@@ -16,7 +16,7 @@ class ApiClient
     public function get(string $path, array $query = []): array
     {
         $url = $this->baseUrl . $path;
-        if ($query) $url .= '?' . http_build_query($query);
+        if ($query) $url .= '?' . http_build_query(array_filter($query, fn($v) => $v !== null && $v !== ''));
         return $this->request('GET', $url);
     }
 
@@ -45,9 +45,6 @@ class ApiClient
         $headers = [
             'Content-Type: application/json',
             'Accept: application/json',
-            // Forward the browser's domain as Host so the Go middleware
-            // can resolve the tenant. Without this, cURL sends "localhost:8080"
-            // and the tenant lookup finds nothing.
             'Host: ' . Config::currentDomain(),
         ];
 
@@ -61,6 +58,7 @@ class ApiClient
             CURLOPT_HTTPHEADER     => $headers,
             CURLOPT_CUSTOMREQUEST  => $method,
             CURLOPT_TIMEOUT        => 15,
+            CURLOPT_CONNECTTIMEOUT => 5,
         ]);
 
         if (in_array($method, ['POST', 'PUT', 'PATCH']) && $data) {
@@ -73,7 +71,7 @@ class ApiClient
         curl_close($ch);
 
         if ($error) {
-            return ['success' => false, 'error' => 'API connection failed: ' . $error];
+            return ['success' => false, 'error' => 'API connection failed: ' . $error, 'data' => null];
         }
 
         $decoded = json_decode($response, true);
@@ -84,6 +82,18 @@ class ApiClient
             exit;
         }
 
-        return $decoded ?? ['success' => false, 'error' => 'Invalid API response (HTTP ' . $httpCode . ')'];
+        if ($httpCode === 403) {
+            return ['success' => false, 'error' => 'You do not have permission to perform this action.', 'data' => null];
+        }
+
+        if ($httpCode === 404) {
+            return ['success' => false, 'error' => 'Resource not found.', 'data' => null];
+        }
+
+        if ($httpCode >= 500) {
+            return ['success' => false, 'error' => 'Server error. Please try again later.', 'data' => null];
+        }
+
+        return $decoded ?? ['success' => false, 'error' => 'Invalid API response (HTTP ' . $httpCode . ')', 'data' => null];
     }
 }
