@@ -14,7 +14,7 @@
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
--- Dumping structure for table SCHOOL-MS-BACKUP.academic_years
+-- Dumping structure for table school_ms.academic_years
 CREATE TABLE IF NOT EXISTS `academic_years` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `school_id` bigint unsigned NOT NULL,
@@ -22,17 +22,14 @@ CREATE TABLE IF NOT EXISTS `academic_years` (
   `start_date` date NOT NULL,
   `end_date` date NOT NULL,
   `is_current` tinyint(1) NOT NULL DEFAULT '0',
-  `current_year_school` bigint GENERATED ALWAYS AS ((case when (`is_current` = 1) then `school_id` else NULL end)) STORED,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_school_year` (`school_id`,`name`),
-  UNIQUE KEY `uq_current_year_school` (`current_year_school`),
   KEY `fk_ay_school` (`school_id`),
   CONSTRAINT `fk_ay_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.assignments
+-- Dumping structure for table school_ms.assignments
 CREATE TABLE IF NOT EXISTS `assignments` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `school_id` bigint unsigned NOT NULL,
@@ -60,7 +57,7 @@ CREATE TABLE IF NOT EXISTS `assignments` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.attendance
+-- Dumping structure for table school_ms.attendance
 CREATE TABLE IF NOT EXISTS `attendance` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `student_id` bigint unsigned NOT NULL,
@@ -70,23 +67,21 @@ CREATE TABLE IF NOT EXISTS `attendance` (
   `date` date NOT NULL,
   `status` enum('present','absent','late','excused') NOT NULL DEFAULT 'present',
   `remark` varchar(255) DEFAULT NULL,
-  `school_id` bigint unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_attendance` (`student_id`,`date`,`term_id`),
   KEY `fk_att_class` (`class_id`),
   KEY `fk_att_term` (`term_id`),
   KEY `fk_att_recorder` (`recorded_by`),
-  KEY `idx_att_school` (`school_id`),
+  KEY `idx_attendance_class_date` (`class_id`,`date`),
   CONSTRAINT `fk_att_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`),
   CONSTRAINT `fk_att_recorder` FOREIGN KEY (`recorded_by`) REFERENCES `users` (`id`),
-  CONSTRAINT `fk_att_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`),
   CONSTRAINT `fk_att_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
   CONSTRAINT `fk_att_term` FOREIGN KEY (`term_id`) REFERENCES `terms` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.audit_logs
+-- Dumping structure for table school_ms.audit_logs
 CREATE TABLE IF NOT EXISTS `audit_logs` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `tenant_id` bigint unsigned NOT NULL,
@@ -103,70 +98,60 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
   KEY `idx_al_school` (`school_id`),
   KEY `idx_al_actor` (`actor_id`),
   KEY `idx_al_entity` (`entity`,`entity_id`),
-  KEY `idx_al_created` (`created_at`)
+  KEY `idx_al_created` (`created_at`),
+  KEY `idx_audit_tenant_entity` (`tenant_id`,`entity`,`entity_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.classes
+-- Dumping structure for table school_ms.classes
 CREATE TABLE IF NOT EXISTS `classes` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `school_id` bigint unsigned NOT NULL,
   `name` varchar(80) NOT NULL,
   `level` varchar(40) NOT NULL,
   `stream` varchar(40) DEFAULT NULL,
-  `deleted_at` datetime DEFAULT NULL,
-  `deleted_by` bigint unsigned DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_class_stream` (`school_id`,`name`,`stream`),
   KEY `fk_classes_school` (`school_id`),
   CONSTRAINT `fk_classes_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.class_subjects
+-- Dumping structure for table school_ms.class_subjects
 CREATE TABLE IF NOT EXISTS `class_subjects` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `class_id` bigint unsigned NOT NULL,
   `subject_id` bigint unsigned NOT NULL,
   `is_compulsory` tinyint(1) NOT NULL DEFAULT '1',
-  `school_id` bigint unsigned NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_cs` (`class_id`,`subject_id`),
   KEY `fk_cs_subject` (`subject_id`),
-  KEY `idx_cs_school` (`school_id`),
   CONSTRAINT `fk_cs_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`),
-  CONSTRAINT `fk_cs_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`),
   CONSTRAINT `fk_cs_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.class_teachers
+-- Dumping structure for table school_ms.class_teachers
 CREATE TABLE IF NOT EXISTS `class_teachers` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `class_id` bigint unsigned NOT NULL,
   `teacher_id` bigint unsigned NOT NULL,
   `term_id` bigint unsigned NOT NULL,
   `assigned_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `school_id` bigint unsigned NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_ct` (`class_id`,`term_id`),
   KEY `fk_ct_teacher` (`teacher_id`),
   KEY `fk_ct_term` (`term_id`),
-  KEY `idx_ct_school` (`school_id`),
   CONSTRAINT `fk_ct_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`),
-  CONSTRAINT `fk_ct_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`),
   CONSTRAINT `fk_ct_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`),
   CONSTRAINT `fk_ct_term` FOREIGN KEY (`term_id`) REFERENCES `terms` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.discipline_records
+-- Dumping structure for table school_ms.discipline_records
 CREATE TABLE IF NOT EXISTS `discipline_records` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `school_id` bigint unsigned NOT NULL,
@@ -191,7 +176,7 @@ CREATE TABLE IF NOT EXISTS `discipline_records` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.exams
+-- Dumping structure for table school_ms.exams
 CREATE TABLE IF NOT EXISTS `exams` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `school_id` bigint unsigned NOT NULL,
@@ -205,7 +190,6 @@ CREATE TABLE IF NOT EXISTS `exams` (
   KEY `fk_exams_school` (`school_id`),
   KEY `fk_exams_term` (`term_id`),
   KEY `fk_exams_class` (`class_id`),
-  KEY `idx_exam_school_class` (`school_id`,`class_id`),
   CONSTRAINT `fk_exams_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`),
   CONSTRAINT `fk_exams_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`),
   CONSTRAINT `fk_exams_term` FOREIGN KEY (`term_id`) REFERENCES `terms` (`id`)
@@ -213,7 +197,7 @@ CREATE TABLE IF NOT EXISTS `exams` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.exam_results
+-- Dumping structure for table school_ms.exam_results
 CREATE TABLE IF NOT EXISTS `exam_results` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `exam_id` bigint unsigned NOT NULL,
@@ -225,28 +209,22 @@ CREATE TABLE IF NOT EXISTS `exam_results` (
   `max_marks` decimal(6,2) NOT NULL DEFAULT '100.00',
   `grade` varchar(5) DEFAULT NULL,
   `remarks` varchar(255) DEFAULT NULL,
-  `school_id` bigint unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_result` (`exam_id`,`student_id`,`subject_id`),
   KEY `fk_er_student` (`student_id`),
   KEY `fk_er_subject` (`subject_id`),
   KEY `fk_er_grader` (`graded_by`),
   KEY `fk_er_class` (`class_id`),
-  KEY `idx_exam_school` (`school_id`),
-  KEY `idx_results_student` (`student_id`,`exam_id`),
   CONSTRAINT `fk_er_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`),
   CONSTRAINT `fk_er_exam` FOREIGN KEY (`exam_id`) REFERENCES `exams` (`id`),
   CONSTRAINT `fk_er_grader` FOREIGN KEY (`graded_by`) REFERENCES `users` (`id`),
   CONSTRAINT `fk_er_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
-  CONSTRAINT `fk_er_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`),
-  CONSTRAINT `fk_exam_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`),
-  CONSTRAINT `chk_marks` CHECK ((`marks` >= 0)),
-  CONSTRAINT `chk_max_marks` CHECK ((`max_marks` > 0))
+  CONSTRAINT `fk_er_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=81 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.exam_schedules
+-- Dumping structure for table school_ms.exam_schedules
 CREATE TABLE IF NOT EXISTS `exam_schedules` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `exam_id` bigint unsigned NOT NULL,
@@ -270,7 +248,7 @@ CREATE TABLE IF NOT EXISTS `exam_schedules` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.fee_discounts
+-- Dumping structure for table school_ms.fee_discounts
 CREATE TABLE IF NOT EXISTS `fee_discounts` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `school_id` bigint unsigned NOT NULL,
@@ -294,7 +272,7 @@ CREATE TABLE IF NOT EXISTS `fee_discounts` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.fee_invoices
+-- Dumping structure for table school_ms.fee_invoices
 CREATE TABLE IF NOT EXISTS `fee_invoices` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `student_id` bigint unsigned NOT NULL,
@@ -308,6 +286,7 @@ CREATE TABLE IF NOT EXISTS `fee_invoices` (
   KEY `fk_fi_student` (`student_id`),
   KEY `fk_fi_feetype` (`fee_type_id`),
   KEY `fk_fi_term` (`term_id`),
+  KEY `idx_invoices_student` (`student_id`,`status`),
   CONSTRAINT `fk_fi_feetype` FOREIGN KEY (`fee_type_id`) REFERENCES `fee_types` (`id`),
   CONSTRAINT `fk_fi_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
   CONSTRAINT `fk_fi_term` FOREIGN KEY (`term_id`) REFERENCES `terms` (`id`)
@@ -315,7 +294,7 @@ CREATE TABLE IF NOT EXISTS `fee_invoices` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.fee_payments
+-- Dumping structure for table school_ms.fee_payments
 CREATE TABLE IF NOT EXISTS `fee_payments` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `invoice_id` bigint unsigned NOT NULL,
@@ -327,18 +306,14 @@ CREATE TABLE IF NOT EXISTS `fee_payments` (
   `mpesa_code` varchar(20) DEFAULT NULL,
   `notes` varchar(255) DEFAULT NULL,
   `paid_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `school_id` bigint unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_fp_invoice` (`invoice_id`),
-  KEY `idx_payment_school` (`school_id`),
-  CONSTRAINT `fk_fp_invoice` FOREIGN KEY (`invoice_id`) REFERENCES `fee_invoices` (`id`),
-  CONSTRAINT `fk_payment_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`),
-  CONSTRAINT `chk_amount_paid` CHECK ((`amount_paid` >= 0))
+  CONSTRAINT `fk_fp_invoice` FOREIGN KEY (`invoice_id`) REFERENCES `fee_invoices` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.fee_types
+-- Dumping structure for table school_ms.fee_types
 CREATE TABLE IF NOT EXISTS `fee_types` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `school_id` bigint unsigned NOT NULL,
@@ -353,7 +328,7 @@ CREATE TABLE IF NOT EXISTS `fee_types` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.grade_scales
+-- Dumping structure for table school_ms.grade_scales
 CREATE TABLE IF NOT EXISTS `grade_scales` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `school_id` bigint unsigned NOT NULL,
@@ -362,14 +337,13 @@ CREATE TABLE IF NOT EXISTS `grade_scales` (
   `max_score` decimal(5,2) NOT NULL,
   `remark` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_school_grade` (`school_id`,`grade`),
   KEY `fk_gs_school` (`school_id`),
   CONSTRAINT `fk_gs_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.library_books
+-- Dumping structure for table school_ms.library_books
 CREATE TABLE IF NOT EXISTS `library_books` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `school_id` bigint unsigned NOT NULL,
@@ -388,7 +362,7 @@ CREATE TABLE IF NOT EXISTS `library_books` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.library_issues
+-- Dumping structure for table school_ms.library_issues
 CREATE TABLE IF NOT EXISTS `library_issues` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `book_id` bigint unsigned NOT NULL,
@@ -410,7 +384,7 @@ CREATE TABLE IF NOT EXISTS `library_issues` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.notices
+-- Dumping structure for table school_ms.notices
 CREATE TABLE IF NOT EXISTS `notices` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `school_id` bigint unsigned NOT NULL,
@@ -428,7 +402,7 @@ CREATE TABLE IF NOT EXISTS `notices` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.notifications
+-- Dumping structure for table school_ms.notifications
 CREATE TABLE IF NOT EXISTS `notifications` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `tenant_id` bigint unsigned NOT NULL,
@@ -444,13 +418,12 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   PRIMARY KEY (`id`),
   KEY `idx_notif_user` (`user_id`,`is_read`),
   KEY `idx_notif_school` (`school_id`),
-  CONSTRAINT `fk_notif_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`),
   CONSTRAINT `fk_notif_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.parents
+-- Dumping structure for table school_ms.parents
 CREATE TABLE IF NOT EXISTS `parents` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `user_id` bigint unsigned NOT NULL,
@@ -467,25 +440,22 @@ CREATE TABLE IF NOT EXISTS `parents` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.parent_student
+-- Dumping structure for table school_ms.parent_student
 CREATE TABLE IF NOT EXISTS `parent_student` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `parent_id` bigint unsigned NOT NULL,
   `student_id` bigint unsigned NOT NULL,
   `relationship` varchar(50) NOT NULL DEFAULT 'parent',
-  `school_id` bigint unsigned NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_ps` (`parent_id`,`student_id`),
   KEY `fk_ps_student` (`student_id`),
-  KEY `idx_ps_school` (`school_id`),
   CONSTRAINT `fk_ps_parent` FOREIGN KEY (`parent_id`) REFERENCES `parents` (`id`),
-  CONSTRAINT `fk_ps_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`),
   CONSTRAINT `fk_ps_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.pending_mpesa_pushes
+-- Dumping structure for table school_ms.pending_mpesa_pushes
 CREATE TABLE IF NOT EXISTS `pending_mpesa_pushes` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `invoice_id` bigint unsigned NOT NULL,
@@ -504,7 +474,7 @@ CREATE TABLE IF NOT EXISTS `pending_mpesa_pushes` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.permissions
+-- Dumping structure for table school_ms.permissions
 CREATE TABLE IF NOT EXISTS `permissions` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL,
@@ -513,47 +483,29 @@ CREATE TABLE IF NOT EXISTS `permissions` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=87 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=84 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.roles
-CREATE TABLE IF NOT EXISTS `roles` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `tenant_id` bigint unsigned DEFAULT NULL,
-  `school_id` bigint unsigned DEFAULT NULL,
-  `name` varchar(80) NOT NULL,
-  `code` varchar(50) NOT NULL,
-  `description` varchar(255) DEFAULT NULL,
-  `is_system` tinyint(1) NOT NULL DEFAULT '0',
-  `is_active` tinyint(1) NOT NULL DEFAULT '1',
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_role_code` (`tenant_id`,`school_id`,`code`),
-  KEY `idx_roles_school` (`school_id`),
-  KEY `idx_roles_tenant` (`tenant_id`),
-  CONSTRAINT `fk_roles_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`),
-  CONSTRAINT `fk_roles_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+-- Dumping structure for event school_ms.purge_token_blacklist
+DELIMITER //
+CREATE EVENT `purge_token_blacklist` ON SCHEDULE EVERY 1 HOUR STARTS '2026-06-27 14:04:55' ON COMPLETION NOT PRESERVE ENABLE DO DELETE FROM token_blacklist WHERE expires_at < NOW()//
+DELIMITER ;
 
--- Data exporting was unselected.
-
--- Dumping structure for table SCHOOL-MS-BACKUP.role_permissions
+-- Dumping structure for table school_ms.role_permissions
 CREATE TABLE IF NOT EXISTS `role_permissions` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `role` varchar(50) NOT NULL,
   `permission_id` bigint unsigned NOT NULL,
-  `role_id` bigint unsigned NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_role_permission` (`role_id`,`permission_id`),
+  UNIQUE KEY `uq_role_perm` (`role`,`permission_id`),
   KEY `permission_id` (`permission_id`),
-  CONSTRAINT `fk_role_permissions_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`),
   CONSTRAINT `role_permissions_ibfk_1` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=283 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=282 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.schools
+-- Dumping structure for table school_ms.schools
 CREATE TABLE IF NOT EXISTS `schools` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `tenant_id` bigint unsigned NOT NULL,
@@ -583,7 +535,7 @@ CREATE TABLE IF NOT EXISTS `schools` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.staff_attendance
+-- Dumping structure for table school_ms.staff_attendance
 CREATE TABLE IF NOT EXISTS `staff_attendance` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `teacher_id` bigint unsigned NOT NULL,
@@ -605,7 +557,7 @@ CREATE TABLE IF NOT EXISTS `staff_attendance` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.students
+-- Dumping structure for table school_ms.students
 CREATE TABLE IF NOT EXISTS `students` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `school_id` bigint unsigned NOT NULL,
@@ -628,8 +580,6 @@ CREATE TABLE IF NOT EXISTS `students` (
   `enrolled_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `left_date` date DEFAULT NULL,
   `left_reason` varchar(255) DEFAULT NULL,
-  `deleted_at` datetime DEFAULT NULL,
-  `deleted_by` bigint unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_admission` (`school_id`,`admission_no`),
   KEY `fk_students_class` (`class_id`),
@@ -640,7 +590,7 @@ CREATE TABLE IF NOT EXISTS `students` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.student_class_history
+-- Dumping structure for table school_ms.student_class_history
 CREATE TABLE IF NOT EXISTS `student_class_history` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `student_id` bigint unsigned NOT NULL,
@@ -659,7 +609,7 @@ CREATE TABLE IF NOT EXISTS `student_class_history` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.student_transfers
+-- Dumping structure for table school_ms.student_transfers
 CREATE TABLE IF NOT EXISTS `student_transfers` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `student_id` bigint unsigned NOT NULL,
@@ -682,26 +632,21 @@ CREATE TABLE IF NOT EXISTS `student_transfers` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.subjects
+-- Dumping structure for table school_ms.subjects
 CREATE TABLE IF NOT EXISTS `subjects` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `school_id` bigint unsigned NOT NULL,
   `name` varchar(100) NOT NULL,
   `code` varchar(20) NOT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
-  `deleted_at` datetime DEFAULT NULL,
-  `deleted_by` bigint unsigned DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_subject_code` (`school_id`,`code`),
   KEY `fk_subjects_school` (`school_id`),
   CONSTRAINT `fk_subjects_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.teachers
+-- Dumping structure for table school_ms.teachers
 CREATE TABLE IF NOT EXISTS `teachers` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `user_id` bigint unsigned NOT NULL,
@@ -720,42 +665,33 @@ CREATE TABLE IF NOT EXISTS `teachers` (
   `address` text,
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `photo_url` varchar(500) DEFAULT NULL,
-  `deleted_at` datetime DEFAULT NULL,
-  `deleted_by` bigint unsigned DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_teacher_employee` (`school_id`,`employee_no`),
   KEY `fk_teachers_user` (`user_id`),
   KEY `fk_teachers_school` (`school_id`),
-  KEY `idx_teachers_school_active` (`school_id`,`is_active`),
   CONSTRAINT `fk_teachers_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`),
   CONSTRAINT `fk_teachers_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.teacher_subjects
+-- Dumping structure for table school_ms.teacher_subjects
 CREATE TABLE IF NOT EXISTS `teacher_subjects` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `teacher_id` bigint unsigned NOT NULL,
   `subject_id` bigint unsigned NOT NULL,
   `class_id` bigint unsigned NOT NULL,
-  `school_id` bigint unsigned NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_ts` (`teacher_id`,`subject_id`,`class_id`),
   KEY `fk_ts_subject` (`subject_id`),
   KEY `fk_ts_class` (`class_id`),
-  KEY `idx_ts_school` (`school_id`),
   CONSTRAINT `fk_ts_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`),
-  CONSTRAINT `fk_ts_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`),
   CONSTRAINT `fk_ts_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`),
   CONSTRAINT `fk_ts_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.tenants
+-- Dumping structure for table school_ms.tenants
 CREATE TABLE IF NOT EXISTS `tenants` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `slug` varchar(60) NOT NULL,
@@ -771,7 +707,7 @@ CREATE TABLE IF NOT EXISTS `tenants` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.terms
+-- Dumping structure for table school_ms.terms
 CREATE TABLE IF NOT EXISTS `terms` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `academic_year_id` bigint unsigned NOT NULL,
@@ -779,16 +715,14 @@ CREATE TABLE IF NOT EXISTS `terms` (
   `start_date` date NOT NULL,
   `end_date` date NOT NULL,
   `is_current` tinyint(1) NOT NULL DEFAULT '0',
-  `current_term_year` bigint GENERATED ALWAYS AS ((case when (`is_current` = 1) then `academic_year_id` else NULL end)) STORED,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_current_term_year` (`current_term_year`),
   KEY `fk_terms_ay` (`academic_year_id`),
   CONSTRAINT `fk_terms_ay` FOREIGN KEY (`academic_year_id`) REFERENCES `academic_years` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.timetable_slots
+-- Dumping structure for table school_ms.timetable_slots
 CREATE TABLE IF NOT EXISTS `timetable_slots` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `school_id` bigint unsigned NOT NULL,
@@ -815,14 +749,27 @@ CREATE TABLE IF NOT EXISTS `timetable_slots` (
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.users
+-- Dumping structure for table school_ms.token_blacklist
+CREATE TABLE IF NOT EXISTS `token_blacklist` (
+  `jti` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` bigint unsigned NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`jti`),
+  KEY `idx_tbl_expires` (`expires_at`),
+  KEY `idx_tbl_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Data exporting was unselected.
+
+-- Dumping structure for table school_ms.users
 CREATE TABLE IF NOT EXISTS `users` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `tenant_id` bigint unsigned NOT NULL,
-  `first_name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
-  `last_name` varchar(150) NOT NULL,
+  `name` varchar(150) NOT NULL,
   `email` varchar(150) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
+  `role` enum('superadmin','admin','teacher','parent','student') NOT NULL DEFAULT 'student',
   `phone` varchar(20) DEFAULT NULL,
   `school_id` bigint unsigned DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
@@ -830,38 +777,16 @@ CREATE TABLE IF NOT EXISTS `users` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `last_login_at` datetime DEFAULT NULL,
   `avatar_url` varchar(500) DEFAULT NULL,
-  `deleted_at` datetime DEFAULT NULL,
-  `deleted_by` bigint unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_users_email_tenant` (`email`,`tenant_id`),
   KEY `fk_users_tenant` (`tenant_id`),
-  KEY `idx_users_school` (`school_id`),
-  KEY `idx_users_tenant_school` (`tenant_id`,`school_id`),
-  CONSTRAINT `fk_users_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`),
+  KEY `idx_users_tenant_active` (`tenant_id`,`is_active`),
   CONSTRAINT `fk_users_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Data exporting was unselected.
 
--- Dumping structure for table SCHOOL-MS-BACKUP.user_roles
-CREATE TABLE IF NOT EXISTS `user_roles` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `user_id` bigint unsigned NOT NULL,
-  `role_id` bigint unsigned NOT NULL,
-  `assigned_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `assigned_by` bigint unsigned DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_user_role` (`user_id`,`role_id`),
-  KEY `idx_user_roles_role` (`role_id`),
-  KEY `fk_user_roles_assigned` (`assigned_by`),
-  CONSTRAINT `fk_user_roles_assigned` FOREIGN KEY (`assigned_by`) REFERENCES `users` (`id`),
-  CONSTRAINT `fk_user_roles_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_user_roles_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- Data exporting was unselected.
-
--- Dumping structure for view SCHOOL-MS-BACKUP.v_current_terms
+-- Dumping structure for view school_ms.v_current_terms
 -- Creating temporary table to overcome VIEW dependency errors
 CREATE TABLE `v_current_terms` (
 	`id` BIGINT UNSIGNED NOT NULL,
